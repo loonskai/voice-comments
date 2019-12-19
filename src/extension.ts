@@ -4,62 +4,32 @@ config();
 import {
   commands,
   ExtensionContext,
-  StatusBarItem,
-  StatusBarAlignment,
   window
 } from "vscode";
+import Recognizer from './recognizer';
+import StatusBar from './statusbar';
 
-class StatusbarUi {
-  private static _statusBarItem: StatusBarItem;
 
-  static get statusbar(): StatusBarItem {
-    if (!StatusbarUi._statusBarItem) {
-      StatusbarUi._statusBarItem = window.createStatusBarItem(
-        StatusBarAlignment.Left,
-        100
-      );
-      this.statusbar.show();
-    }
-
-    return StatusbarUi._statusBarItem;
-  }
-  static Init(): void {
-    setTimeout(function() {
-      StatusbarUi.Stopped();
-    }, 1000);
-  }
-
-  public static Recording(): void {
-    StatusbarUi.statusbar.text = "$(circle-filled) Recording";
-    StatusbarUi.statusbar.command = "extension.stopRecording";
-    StatusbarUi.statusbar.tooltip = "Stop comment recording";
-  }
-
-  public static Stopped(): void {
-    StatusbarUi.statusbar.text = "$(play) Record a comment";
-    StatusbarUi.statusbar.command = "extension.startRecording";
-    StatusbarUi.statusbar.tooltip = "Start recording a comment";
-  }
-}
 
 export function activate(context: ExtensionContext): void {
   const token = process.env.REV_AI_TOKEN || '';
-  const statusBarItem = window.createStatusBarItem(StatusBarAlignment.Left);
-  statusBarItem.command = "extension.startRecording";
-  StatusbarUi.Stopped();
+  const recognizer = new Recognizer(token);
+
+  StatusBar.Stopped();
 
   const startRecording = commands.registerCommand(
     "extension.startRecording",
     () => {
-      StatusbarUi.Recording();
+      StatusBar.Recording();
       window.showInformationMessage("Start recording");
+      recognizer.start();
     }
   );
 
   const stopRecording = commands.registerCommand(
     "extension.stopRecording",
     () => {
-      StatusbarUi.Stopped();
+      StatusBar.Stopped();
       window.showInformationMessage("Stop recording");
     }
   );

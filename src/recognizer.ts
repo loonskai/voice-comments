@@ -11,7 +11,7 @@ export default class Recognizer {
   client: RevAiStreamingClient;
 
   constructor(token: string) {
-    this.micInstance = mic.createInstance({
+    this.micInstance = mic({
       rate: '16000',
       channels: '1',
       device: 'plughw',
@@ -48,8 +48,7 @@ export default class Recognizer {
     });
   }
 
-  startClient(): void {
-    console.log('Connecting...');
+  start(): void {
     const stream = this.client.start();
 
     stream.on('data', (data: StreamingHypothesis) => {
@@ -62,17 +61,17 @@ export default class Recognizer {
     });
   }
 
-  stopClient(): void {
+  stop(): void {
     this.micInstance.stop();
   }
 
-  startMicRecording(stream: NodeJS.ReadStream): void {
+  private startMicRecording(stream: NodeJS.ReadStream): void {
     this.micInstance.start();
     this.micInputStream.pipe(stream);
 
   }
 
-  stopMicRecording(): void {
+  private stopMicRecording(): void {
     this.micInstance.stop();
   }
 }

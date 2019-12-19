@@ -18,6 +18,7 @@ export default class StatusBar {
 
     return StatusBar._statusBarItem;
   }
+
   static Init(): void {
     setTimeout(function() {
       StatusBar.Stopped();

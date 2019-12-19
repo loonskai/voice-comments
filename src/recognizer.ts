@@ -7,25 +7,23 @@ import {
   RevAiStreamingClient,
   StreamingHypothesis,
 } from 'revai-node-sdk';
-import { Duplex } from 'stream';
 
 export default class Recognizer {
   filePath: string;
+  token: string;
   micInstance: mic.MicInstance | undefined;
   micInputStream: mic.MicInputStream | undefined;
 
-  revAiClient: RevAiStreamingClient;
+  revAiClient: RevAiStreamingClient | undefined;
   statusbar: typeof StatusBar;
   callback: (message: string) => void;
 
   constructor(token: string, statusbar: typeof StatusBar, callback: (message: string) => void) {
     this.filePath = path.resolve(__dirname, 'output.raw');
+    this.token = token;
     this.statusbar = statusbar;
     this.callback = callback;
-    this.revAiClient = new RevAiStreamingClient(
-      token,
-      new AudioConfig('audio/x-raw', 'interleaved', 16000, 'S16LE', 1)
-    );
+
     this.statusbar.Init();
   }
 
@@ -39,6 +37,16 @@ export default class Recognizer {
       exitOnSilence: 6
     });
     this.micInputStream = this.micInstance.getAudioStream();
+  }
+
+  createRevAiClient(): RevAiStreamingClient {
+    const revAiClient = new RevAiStreamingClient(
+      this.token,
+      new AudioConfig('audio/x-raw', 'interleaved', 16000, 'S16LE', 1)
+    );
+    revAiClient.on('close', this.statusbar.Stopped);
+    revAiClient.on('connectFailed', this.statusbar.Stopped);
+    return revAiClient;
   }
 
   start(): void {
@@ -60,92 +68,26 @@ export default class Recognizer {
   }
   
   processing(): void {
-    try {
-      this.statusbar.Processing();
-      const revAiStream = this.revAiClient.start();
+    let comment = '';
+    this.statusbar.Processing();
+    const revAiClient = this.createRevAiClient();
+    const revAiStream = revAiClient.start();
 
-      const file = fs.createReadStream(this.filePath);
-      revAiStream.on('data', (data: StreamingHypothesis) => {
-        if (data.type === 'final') {
-          const comment = data.elements.map(el => el.value).join('');
-          this.callback(comment);
-        }
-      });
+    const file = fs.createReadStream(this.filePath);
+    revAiStream.on('data', (data: StreamingHypothesis) => {
+      if (data.type === 'final') {
+        comment = data.elements.map(el => el.value).join('');
+      }
+    });
 
-      file.on('end', () => {
-        this.revAiClient.end();
-      });
+    file.on('end', () => {
+      revAiClient.end();
+    });
 
-      revAiStream.on('end', () => {
-        this.statusbar.Stopped();
-      });
-    
-      file.pipe(revAiStream);
-    } catch (error) {
-      this.statusbar.Stopped();
-    }
+    revAiStream.on('end', () => {
+      this.callback(comment);
+    });
+  
+    file.pipe(revAiStream);
   }
-  
-
-    // this.sentence = null;
-    // this.stream = null;
-    // this.statusbar = statusbar;
-    // this.micInputStream = null;
-    // this.callback = callback;
-  
-    
-    
-    // this.micInstance.start();
-
-    
-
-    // this.client.on('connect', () => {
-    //   /* When connected to RevAi */
-    //   this.startMic();
-    // });
-    
-    // this.client.on('close', () => {
-    //   /* When disconnected from RevAi */
-    //   this.statusbar.Stopped();
-    //   this.stopMic();
-    // });
-
-  // start(): void {
-  //   // this.stream = this.client.start();
-  //   // this.statusbar.Connecting();
-
-  //   // this.stream.on('data', (data: StreamingHypothesis) => {
-      
-  //   //   if (data.type === 'final') {
-  //   //     this.sentence = data.elements.map(el => el.value).join('');
-  //   //     this.stop();
-  //   //   }
-  //   // });
-
-  //   // this.stream.on('end', () => this.stream && this.stream.removeAllListeners())
-  // }
-
-  // stop(): void {
-  //   // this.client.emit('close');
-  // }
-
-  // startMic(): void {
-  //   if (!this.stream) return;
-
-  //   
-  //   if (!this.micInputStream) {
-  //     /* Create an input stream from connected mic */
-  //     this.micInputStream = this.micInstance.getAudioStream();
-  //     this.micInputStream.pipe(this.stream);
-  //   } else {
-  //     /* Resume the previous stream if created */
-  //     this.micInstance.resume()
-  //   }
-  // }
-
-  // stopMic(): void {
-  //   /* Pause the mic */
-  //   this.micInstance.pause();
-  // }
 }
-

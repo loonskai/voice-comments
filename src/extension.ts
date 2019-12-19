@@ -1,3 +1,6 @@
+import { config } from 'dotenv';
+config();
+
 import {
   commands,
   ExtensionContext,
@@ -40,6 +43,7 @@ class StatusbarUi {
 }
 
 export function activate(context: ExtensionContext): void {
+  const token = process.env.REV_AI_TOKEN || '';
   const statusBarItem = window.createStatusBarItem(StatusBarAlignment.Left);
   statusBarItem.command = "extension.startRecording";
   StatusbarUi.Stopped();

@@ -1,5 +1,8 @@
-declare module 'mic' {
-  interface MicOptions {
+declare module 'mic' {  
+
+  export function createInstance(options: MicOptions): MicInstance;
+  
+  export interface MicOptions {
     endian?: 'big' | 'little';
     bitwidth?: string;
     encoding?: 'signed-integer' | 'unsigned-integer';
@@ -11,12 +14,12 @@ declare module 'mic' {
     fileType?: string;
   }
 
-  interface MicInstance {
-    getAudioStream: () => NodeJS.ReadWriteStream;
+  export interface MicInstance {
+    getAudioStream: () => MicInputStream;
     start: () => void;
     stop: () => void;
   }
 
-  const x: (options: MicOptions) => MicInstance;
-  export = x;
+  export type MicInputStream = NodeJS.ReadWriteStream
+
 }

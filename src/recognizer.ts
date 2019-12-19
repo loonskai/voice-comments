@@ -1,4 +1,5 @@
 import mic from 'mic';
+import StatusBar from './statusbar';
 import {
   AudioConfig,
   RevAiStreamingClient,
@@ -8,12 +9,20 @@ import { Duplex } from 'stream';
 
 export default class Recognizer {
   micInstance: mic.MicInstance;
-  micInputStream: mic.MicInputStream;
-  client: RevAiStreamingClient;
-  sentence: string | null;
+  micInputStream: mic.MicInputStream | null;
 
-  constructor(token: string) {
+  client: RevAiStreamingClient;
+  stream: Duplex | null;
+  sentence: string | null;
+  statusbar: typeof StatusBar;
+
+  constructor(token: string, statusbar: typeof StatusBar) {
     this.sentence = null;
+    this.stream = null;
+    this.statusbar = statusbar;
+    this.micInputStream = null;
+  
+    this.statusbar.Init();
     this.micInstance = mic({
       rate: '16000',
       channels: '1',
@@ -21,61 +30,68 @@ export default class Recognizer {
       fileType: 'wav',
       exitOnSilence: 1
     });
-    this.micInputStream = this.micInstance.getAudioStream();
+    this.micInstance.start();
 
     this.client = new RevAiStreamingClient(
       token,
       new AudioConfig('audio/x-raw', 'interleaved', 16000, 'S16LE', 1)
     );
 
-    this.micInputStream.on('error', (err: any) => {
-      console.log('Error in Input Stream: ' + err);
+    this.client.on('connect', () => {
+      console.log('Connected to RevAi');
+      this.startMic();
     });
 
-    this.micInputStream.on('stopComplete', function() {
-      console.log('Got SIGNAL stopComplete');
-    });
+    this.client.on('close', () => {
+      console.log('Disconnected from RevAi');
+      this.statusbar.Stopped();
 
-    this.client.on('close', (code, reason) => {
-      console.log(`Connection closed, ${code}: ${reason}`);
-    });
-    
-    this.client.on('connectFailed', error => {
-      console.log(`Connection failed with error: ${error}`);
-    });
-    
-    this.client.on('connect', connectionMessage => {
-      console.log(connectionMessage);
-      console.log('Speak');
-      // micInstance.start();
+      this.stopMic();
+      console.log(this.sentence)
     });
   }
 
-  start(cb: () => void): void {
-    const stream = this.client.start();
-    stream.on('data', (data: StreamingHypothesis) => {
+  start(): void {
+    this.stream = this.client.start();
+    this.statusbar.Connecting();
+
+    this.stream.on('data', (data: StreamingHypothesis) => {
+      
       if (data.type === 'final') {
         this.sentence = data.elements.map(el => el.value).join('');
         this.stop();
-        cb()
       }
     });
-
-    this.startMicRecording(stream);
   }
 
   stop(): void {
-    this.stopMicRecording();
-    this.client.end();
+    this.client.emit('close');
+    console.log('-------------')
   }
 
-  private startMicRecording(stream: Duplex): void {
-    this.micInstance.start();
-    this.micInputStream.pipe(stream);
+  startMic(): void {
+    if (!this.stream) {
+      console.log('Not connected to RevAi')
+      return;
+    }
+  
+    this.statusbar.Recording();
+    if (!this.micInputStream) {
+      console.log('Start mic')
+      this.micInputStream = this.micInstance.getAudioStream();
+      this.micInputStream.pipe(this.stream);
+      this.micInputStream.on('stopComplete', function() {
+        console.log("micInputStream stopComplete");
+      });
+    } else {
+      console.log('Resume mic')
+      this.micInstance.resume()
+    }
   }
 
-  private stopMicRecording(): void {
-    this.micInstance.stop();
+  stopMic() {
+    console.log('Pause mic')
+    this.micInstance.pause();
   }
 }
 

@@ -5,6 +5,8 @@ declare module 'mic' {
     getAudioStream: () => InputStream;
     start: () => void;
     stop: () => void;
+    pause: () => void;
+    resume: () => void;
   }
 
   interface Options {

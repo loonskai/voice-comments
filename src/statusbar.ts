@@ -25,7 +25,7 @@ export default class StatusBar {
   }
 
   public static Recording(): void {
-    StatusBar.statusbar.text = "$(circle-filled) Recording";
+    StatusBar.statusbar.text = "$(circle-filled) Recording...";
     StatusBar.statusbar.command = "extension.stopRecording";
     StatusBar.statusbar.tooltip = "Stop comment recording";
   }
@@ -34,5 +34,11 @@ export default class StatusBar {
     StatusBar.statusbar.text = "$(play) Record a comment";
     StatusBar.statusbar.command = "extension.startRecording";
     StatusBar.statusbar.tooltip = "Start recording a comment";
+  }
+
+  public static Connecting(): void {
+    StatusBar.statusbar.text = "$(loading) Connecting";
+    StatusBar.statusbar.command = undefined;
+    StatusBar.statusbar.tooltip = "Connecting to the server";
   }
 }

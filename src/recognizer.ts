@@ -33,7 +33,6 @@ export default class Recognizer {
       channels: 1,
       device: 'plughw',
       fileType: 'raw',
-      debug: true,
       exitOnSilence: 6
     });
     this.micInputStream = this.micInstance.getAudioStream();
@@ -76,7 +75,8 @@ export default class Recognizer {
     const file = fs.createReadStream(this.filePath);
     revAiStream.on('data', (data: StreamingHypothesis) => {
       if (data.type === 'final') {
-        comment = data.elements.map(el => el.value).join('');
+        const result = data.elements.map(el => el.value).join('');
+        comment = ['', '<unk>.'].includes(result) ? '' : result;
       }
     });
 

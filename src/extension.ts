@@ -1,38 +1,35 @@
-import {
-  commands,
-  ExtensionContext,
-  window,
-  Position
-} from "vscode";
+import { commands, ExtensionContext, window, Position } from 'vscode';
 import Recognizer from './recognizer';
 import StatusBar from './statusbar';
 
 export function activate(context: ExtensionContext): void {
   const token = process.env.REV_AI_TOKEN || '';
   const recognizer = new Recognizer(token, StatusBar, (message: string) => {
-    if (['', '<unk>.'].includes(message)) return;
+    if (!message) return;
     const { activeTextEditor } = window;
     if (activeTextEditor) {
-      const { line, character } = activeTextEditor.selection.active;
-      
+      const { selection, document } = activeTextEditor;
+      const { line } = selection.active;
+      const lineLength = document.lineAt(line).text.length;
+
       activeTextEditor.edit(() => {
-        const startPosition = new Position(line, character + 1);
+        const startPosition = new Position(line, lineLength);
         activeTextEditor.edit(editor => {
-          editor.insert(startPosition, `// ${message}`)
+          editor.insert(startPosition, ` /* ${message} */`);
         });
       });
     }
   });
 
   const startRecording = commands.registerCommand(
-    "extension.startRecording",
+    'extension.startRecording',
     () => {
       recognizer.start();
     }
   );
 
   const stopRecording = commands.registerCommand(
-    "extension.stopRecording",
+    'extension.stopRecording',
     () => {
       recognizer.stop();
     }

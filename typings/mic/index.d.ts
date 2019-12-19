@@ -13,8 +13,8 @@ declare module 'mic' {
     endian?: 'big' | 'little';
     bitwidth?: string;
     encoding?: 'signed-integer' | 'unsigned-integer';
-    rate?: string;
-    channels?: string;
+    rate?: string | number;
+    channels?: string | number;
     device?: string;
     exitOnSilence?: number;
     debug?: boolean;

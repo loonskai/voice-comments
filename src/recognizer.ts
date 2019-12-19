@@ -40,12 +40,12 @@ export default class Recognizer {
     );
 
     this.client.on('connect', () => {
-      console.log('Connected to RevAi');
+      /* When connected to RevAi */
       this.startMic();
     });
-
+    
     this.client.on('close', () => {
-      console.log('Disconnected from RevAi');
+      /* When disconnected from RevAi */
       this.statusbar.Stopped();
 
       this.stopMic();
@@ -68,31 +68,24 @@ export default class Recognizer {
   stop(): void {
     this.client.emit('close');
     this.callback(this.sentence);
-    console.log('-------------')
   }
 
   startMic(): void {
-    if (!this.stream) {
-      console.log('Not connected to RevAi')
-      return;
-    }
-  
+    if (!this.stream) return;
+
     this.statusbar.Recording();
     if (!this.micInputStream) {
-      console.log('Start mic')
+      /* Create an input stream from connected mic */
       this.micInputStream = this.micInstance.getAudioStream();
       this.micInputStream.pipe(this.stream);
-      this.micInputStream.on('stopComplete', function() {
-        console.log("micInputStream stopComplete");
-      });
     } else {
-      console.log('Resume mic')
+      /* Resume the previous stream if created */
       this.micInstance.resume()
     }
   }
 
-  stopMic() {
-    console.log('Pause mic')
+  stopMic(): void {
+    /* Pause the mic */
     this.micInstance.pause();
   }
 }

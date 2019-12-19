@@ -15,12 +15,14 @@ export default class Recognizer {
   stream: Duplex | null;
   sentence: string | null;
   statusbar: typeof StatusBar;
+  callback: any;
 
-  constructor(token: string, statusbar: typeof StatusBar) {
+  constructor(token: string, statusbar: typeof StatusBar, callback: any) {
     this.sentence = null;
     this.stream = null;
     this.statusbar = statusbar;
     this.micInputStream = null;
+    this.callback = callback;
   
     this.statusbar.Init();
     this.micInstance = mic({
@@ -47,7 +49,6 @@ export default class Recognizer {
       this.statusbar.Stopped();
 
       this.stopMic();
-      console.log(this.sentence)
     });
   }
 
@@ -66,6 +67,7 @@ export default class Recognizer {
 
   stop(): void {
     this.client.emit('close');
+    this.callback(this.sentence);
     console.log('-------------')
   }
 

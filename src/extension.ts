@@ -8,12 +8,13 @@ import StatusBar from './statusbar';
 
 export function activate(context: ExtensionContext): void {
   const token = process.env.REV_AI_TOKEN || '';
-  const recognizer = new Recognizer(token, StatusBar);
+  const recognizer = new Recognizer(token, StatusBar, (message: string) => {
+    window.showInformationMessage(message);
+  });
 
   const startRecording = commands.registerCommand(
     "extension.startRecording",
     () => {
-      window.showInformationMessage('Connect to service');
       recognizer.start();
     }
   );
@@ -21,7 +22,6 @@ export function activate(context: ExtensionContext): void {
   const stopRecording = commands.registerCommand(
     "extension.stopRecording",
     () => {
-      window.showInformationMessage('Stopped');
       recognizer.stop();
     }
   );

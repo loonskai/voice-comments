@@ -1,20 +1,14 @@
-import { config } from 'dotenv';
-config();
-
 import {
   commands,
   ExtensionContext,
-  window
+  window,
 } from "vscode";
 import Recognizer from './recognizer';
 import StatusBar from './statusbar';
 
-
-
 export function activate(context: ExtensionContext): void {
   const token = process.env.REV_AI_TOKEN || '';
   const recognizer = new Recognizer(token);
-
   StatusBar.Stopped();
 
   const startRecording = commands.registerCommand(
@@ -22,7 +16,7 @@ export function activate(context: ExtensionContext): void {
     () => {
       StatusBar.Recording();
       window.showInformationMessage("Start recording");
-      recognizer.start();
+      recognizer.start(() => commands.executeCommand('extension.stopRecording'));
     }
   );
 
@@ -30,7 +24,7 @@ export function activate(context: ExtensionContext): void {
     "extension.stopRecording",
     () => {
       StatusBar.Stopped();
-      window.showInformationMessage("Stop recording");
+      window.showInformationMessage(recognizer.sentence ? recognizer.sentence : "Stop recording");
     }
   );
 

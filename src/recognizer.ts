@@ -2,15 +2,18 @@ import mic from 'mic';
 import {
   AudioConfig,
   RevAiStreamingClient,
-  StreamingHypothesis
+  StreamingHypothesis,
 } from 'revai-node-sdk';
+import { Duplex } from 'stream';
 
 export default class Recognizer {
   micInstance: mic.MicInstance;
   micInputStream: mic.MicInputStream;
   client: RevAiStreamingClient;
+  sentence: string | null;
 
   constructor(token: string) {
+    this.sentence = null;
     this.micInstance = mic({
       rate: '16000',
       channels: '1',
@@ -48,27 +51,27 @@ export default class Recognizer {
     });
   }
 
-  start(): void {
+  start(cb: () => void): void {
     const stream = this.client.start();
-
     stream.on('data', (data: StreamingHypothesis) => {
       if (data.type === 'final') {
-        const sentence = data.elements.map(el => el.value).join('');
-        console.log(sentence);
-        this.micInstance.stop();
-        this.client.end();
+        this.sentence = data.elements.map(el => el.value).join('');
+        this.stop();
+        cb()
       }
     });
+
+    this.startMicRecording(stream);
   }
 
   stop(): void {
-    this.micInstance.stop();
+    this.stopMicRecording();
+    this.client.end();
   }
 
-  private startMicRecording(stream: NodeJS.ReadStream): void {
+  private startMicRecording(stream: Duplex): void {
     this.micInstance.start();
     this.micInputStream.pipe(stream);
-
   }
 
   private stopMicRecording(): void {

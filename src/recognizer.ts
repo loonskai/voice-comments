@@ -47,7 +47,6 @@ export default class Recognizer {
     this.client.on('close', () => {
       /* When disconnected from RevAi */
       this.statusbar.Stopped();
-
       this.stopMic();
     });
   }
@@ -63,11 +62,12 @@ export default class Recognizer {
         this.stop();
       }
     });
+
+    this.stream.on('end', () => this.stream && this.stream.removeAllListeners())
   }
 
   stop(): void {
     this.client.emit('close');
-    this.callback(this.sentence);
   }
 
   startMic(): void {

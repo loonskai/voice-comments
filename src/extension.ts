@@ -10,6 +10,7 @@ import StatusBar from './statusbar';
 export function activate(context: ExtensionContext): void {
   const token = process.env.REV_AI_TOKEN || '';
   const recognizer = new Recognizer(token, StatusBar, (message: string) => {
+    if ([null, '<unk>.'].includes(message)) return;
     const { activeTextEditor } = window;
     if (activeTextEditor) {
       const { line, character } = activeTextEditor.selection.active;

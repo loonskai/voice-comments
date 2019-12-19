@@ -41,4 +41,10 @@ export default class StatusBar {
     StatusBar.statusbar.command = undefined;
     StatusBar.statusbar.tooltip = "Connecting to the server";
   }
+
+  public static Processing(): void {
+    StatusBar.statusbar.text = "$(ellipsis) Processing";
+    StatusBar.statusbar.command = undefined;
+    StatusBar.statusbar.tooltip = "Record processing";
+  }
 }

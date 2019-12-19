@@ -14,15 +14,18 @@ export default class Recognizer {
   micInstance: mic.MicInstance | undefined;
   micInputStream: mic.MicInputStream | undefined;
 
-  // client: RevAiStreamingClient;
-  // stream: Duplex | null;
-  // sentence: string | null;
+  revAiClient: RevAiStreamingClient;
   statusbar: typeof StatusBar;
-  // callback: any;
+  callback: (message: string) => void;
 
-  constructor(token: string, statusbar: typeof StatusBar, callback: any) {
+  constructor(token: string, statusbar: typeof StatusBar, callback: (message: string) => void) {
     this.filePath = path.resolve(__dirname, 'output.raw');
     this.statusbar = statusbar;
+    this.callback = callback;
+    this.revAiClient = new RevAiStreamingClient(
+      token,
+      new AudioConfig('audio/x-raw', 'interleaved', 16000, 'S16LE', 1)
+    );
     this.statusbar.Init();
   }
 
@@ -39,40 +42,48 @@ export default class Recognizer {
   }
 
   start(): void {
-    try {
-      this.createMicInstance();
-      if (this.micInstance && this.micInputStream) {
-        this.micInstance.start()
-        const outputFileStream = fs.createWriteStream(this.filePath);
-        this.micInputStream.pipe(outputFileStream)
+    this.createMicInstance();
+    if (this.micInstance && this.micInputStream) {
+      this.micInstance.start()
+      const outputFileStream = fs.createWriteStream(this.filePath);
+      this.micInputStream.pipe(outputFileStream)
 
-        this.statusbar.Recording();
-
-      /* EVENT LISTENERS */
-      // outputFileStream.on('pipe', () => {
-      //   console.log('FILE piped');
-      // }).on("error", function(error){
-      //   console.log(error)
-      // }).on('finish', () => {
-      //   console.log('FILE finish')
-      // })
-
-      this.micInputStream.on('pauseComplete', function() {
-        // outputFileStream.end()
-      });
-      this.micInputStream.on('data', function(data) {
-        // outputFileStream.write(data)
-      });
-    }
-
-    } catch (error) {
-      console.log(error)
+      this.statusbar.Recording();
+      outputFileStream.on('finish', () => this.processing());
     }
   }
 
   stop(): void {
-    this.micInstance.stop();
-    this.statusbar.Stopped();
+    if (this.micInstance) {
+      this.micInstance.stop();
+    }
+  }
+  
+  processing(): void {
+    try {
+      this.statusbar.Processing();
+      const revAiStream = this.revAiClient.start();
+
+      const file = fs.createReadStream(this.filePath);
+      revAiStream.on('data', (data: StreamingHypothesis) => {
+        if (data.type === 'final') {
+          const comment = data.elements.map(el => el.value).join('');
+          this.callback(comment);
+        }
+      });
+
+      file.on('end', () => {
+        this.revAiClient.end();
+      });
+
+      revAiStream.on('end', () => {
+        this.statusbar.Stopped();
+      });
+    
+      file.pipe(revAiStream);
+    } catch (error) {
+      this.statusbar.Stopped();
+    }
   }
   
 
@@ -86,10 +97,7 @@ export default class Recognizer {
     
     // this.micInstance.start();
 
-    // this.client = new RevAiStreamingClient(
-    //   token,
-    //   new AudioConfig('audio/x-raw', 'interleaved', 16000, 'S16LE', 1)
-    // );
+    
 
     // this.client.on('connect', () => {
     //   /* When connected to RevAi */

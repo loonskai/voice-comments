@@ -27,27 +27,6 @@ export default class Recognizer {
     this.statusbar.Init();
   }
 
-  createMicInstance(): void {
-    this.micInstance = mic({
-      rate: 16000,
-      channels: 1,
-      device: 'plughw',
-      fileType: 'raw',
-      exitOnSilence: 6
-    });
-    this.micInputStream = this.micInstance.getAudioStream();
-  }
-
-  createRevAiClient(): RevAiStreamingClient {
-    const revAiClient = new RevAiStreamingClient(
-      this.token,
-      new AudioConfig('audio/x-raw', 'interleaved', 16000, 'S16LE', 1)
-    );
-    revAiClient.on('close', this.statusbar.Stopped);
-    revAiClient.on('connectFailed', this.statusbar.Stopped);
-    return revAiClient;
-  }
-
   start(): void {
     this.createMicInstance();
     if (this.micInstance && this.micInputStream) {
@@ -65,8 +44,29 @@ export default class Recognizer {
       this.micInstance.stop();
     }
   }
-  
-  processing(): void {
+
+  private createMicInstance(): void {
+    this.micInstance = mic({
+      rate: 16000,
+      channels: 1,
+      device: 'plughw',
+      fileType: 'raw',
+      exitOnSilence: 6
+    });
+    this.micInputStream = this.micInstance.getAudioStream();
+  }
+
+  private createRevAiClient(): RevAiStreamingClient {
+    const revAiClient = new RevAiStreamingClient(
+      this.token,
+      new AudioConfig('audio/x-raw', 'interleaved', 16000, 'S16LE', 1)
+    );
+    revAiClient.on('close', this.statusbar.Stopped);
+    revAiClient.on('connectFailed', this.statusbar.Stopped);
+    return revAiClient;
+  }
+
+  private processing(): void {
     let comment = '';
     this.statusbar.Processing();
     const revAiClient = this.createRevAiClient();

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import sox from 'sox-stream';
 import mic from 'mic';
 import StatusBar from './statusbar';
 import {
@@ -19,7 +20,7 @@ export default class Recognizer {
   callback: (message: string) => void;
 
   constructor(token: string, statusbar: typeof StatusBar, callback: (message: string) => void) {
-    this.filePath = path.resolve(__dirname, 'output.raw');
+    this.filePath = path.resolve(__dirname, 'output');
     this.token = token;
     this.statusbar = statusbar;
     this.callback = callback;
@@ -31,7 +32,7 @@ export default class Recognizer {
     this.createMicInstance();
     if (this.micInstance && this.micInputStream) {
       this.micInstance.start()
-      const outputFileStream = fs.createWriteStream(this.filePath);
+      const outputFileStream = fs.createWriteStream(`${this.filePath}.raw`);
       this.micInputStream.pipe(outputFileStream)
 
       this.statusbar.Recording();
@@ -47,9 +48,8 @@ export default class Recognizer {
 
   private createMicInstance(): void {
     this.micInstance = mic({
-      rate: 16000,
+      rate: 44100,
       channels: 1,
-      device: 'plughw',
       fileType: 'raw',
       exitOnSilence: 6
     });
@@ -59,7 +59,7 @@ export default class Recognizer {
   private createRevAiClient(): RevAiStreamingClient {
     const revAiClient = new RevAiStreamingClient(
       this.token,
-      new AudioConfig('audio/x-raw', 'interleaved', 16000, 'S16LE', 1)
+      new AudioConfig('audio/x-wav', 'interleaved', 44100, 'S16LE', 1)
     );
     revAiClient.on('close', this.statusbar.Stopped);
     revAiClient.on('connectFailed', this.statusbar.Stopped);
@@ -69,25 +69,41 @@ export default class Recognizer {
   private processing(): void {
     let comment = '';
     this.statusbar.Processing();
-    const revAiClient = this.createRevAiClient();
-    const revAiStream = revAiClient.start();
+    /* Format audio */
+    const formatAudio = fs.createReadStream(`${this.filePath}.raw`)
+      .pipe(sox({
+        output: {
+          bits: 16,
+          rate: 44100,
+          channels: 1,
+          type: 'wav'
+        }
+      }))
+      .pipe(fs.createWriteStream(`${this.filePath}.wav`));
 
-    const file = fs.createReadStream(this.filePath);
-    revAiStream.on('data', (data: StreamingHypothesis) => {
-      if (data.type === 'final') {
-        const result = data.elements.map(el => el.value).join('');
-        comment = ['', '<unk>.'].includes(result) ? '' : result;
-      }
-    });
+    /* Broadcast to service */
+    formatAudio.on('finish', () => {
+      const revAiClient = this.createRevAiClient();
+      const revAiStream = revAiClient.start();
 
-    file.on('end', () => {
-      revAiClient.end();
-    });
+      revAiStream.on('data', (data: StreamingHypothesis) => {
+        if (data.type === 'final') {
+          const result = data.elements.map(el => el.value).join('');
+          comment = ['', '<unk>.'].includes(result) ? '' : result;
+        }
+      });
 
-    revAiStream.on('end', () => {
-      this.callback(comment);
+      const fileStream = fs.createReadStream(`${this.filePath}.wav`);
+
+      fileStream.on('end', () => {
+        revAiClient.end();
+      });
+
+      revAiStream.on('end', () => {
+        this.callback(comment);
+      });
+
+      fileStream.pipe(revAiStream);
     });
-  
-    file.pipe(revAiStream);
   }
 }
